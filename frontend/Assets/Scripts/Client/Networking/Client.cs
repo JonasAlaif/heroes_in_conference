@@ -3,10 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Linq;
-using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 public class Client {
