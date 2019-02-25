@@ -23,12 +23,21 @@ public class Database {
             try {
                 db = (Database)binaryFormatter.Deserialize(streamReader.BaseStream);
                 // TODO: catch error if not DB object
-            }
-            catch (SerializationException ex) {
+            } catch (SerializationException ex) { 
                 throw new SerializationException(((object)ex).ToString() + "\n" + ex.Source);
             }
             return db;
         }
+    }
+    public bool SaveDatabase(string path) {
+        using (Stream stream = File.Open(path, FileMode.Create)) {
+            try {
+                new BinaryFormatter().Serialize(stream, this);
+            } catch (SerializationException ex) {
+                throw new SerializationException(((object)ex).ToString() + "\n" + ex.Source);
+            }
+        }
+        return true;
     }
 
     #region Achievements
@@ -63,6 +72,13 @@ public class Database {
     public List<DBEvent> GetCalendar() {
         return new List<DBEvent>(events.Values);
     }
+
+    public void SetInterest(long eventID, bool isInterested = true) {
+        if (!events.ContainsKey(eventID))
+            return;
+
+        events[eventID].UserGoing = isInterested;
+    }
     #endregion
 
     #region Maps
@@ -74,6 +90,24 @@ public class Database {
         foreach(DBMap map in allMaps) {
             maps.Add(map.MapID, map);
         }
+    }
+    #endregion
+
+    #region Items
+    private Dictionary<long, int> itemCount;
+
+    public void AddItem(long itemID, int count = 1) {
+        if (!itemCount.ContainsKey(itemID))
+            itemCount.Add(itemID, count);
+        else
+            itemCount[itemID] += count;
+    }
+
+    public int GetNumberOfItem(long itemID) {
+        if (!itemCount.ContainsKey(itemID))
+            return 0;
+        else
+            return itemCount[itemID];
     }
     #endregion
 }

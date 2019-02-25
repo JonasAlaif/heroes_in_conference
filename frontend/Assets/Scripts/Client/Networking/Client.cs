@@ -9,7 +9,8 @@ using UnityEngine;
 
 public class Client {
     const string errorText = "error", okText = "ok";
-    const string getMapsApi = "api/maps", getEventsApi = "api/events", getAchievementsApi = "api/achievements", getGroupsApi = "api/groups", getOauthApi = "api/oauth/";
+    const string getMapsApi = "api/maps", getEventsApi = "api/events", getAchievementsApi = "api/achievements", getGroupsApi = "api/groups", getOauthApi = "api/oauth/", 
+        getAchieved = "api/{0}/achieved/{1}", getInterested = "api/{0}/interested/{1}", getUninterested = "api/{0}/uninterested/{1}", getQueryUser = "api/users/query/{0}", getProfileUser = "api/users/profile/{0}";
 
     /// <summary>
     /// The server that the client will be talking to
@@ -33,13 +34,16 @@ public class Client {
 
         }
         else if (okText.CompareTo((string)tokenGet.status) == 0) {
+#if !UNITY_EDITOR
             Application.OpenURL(@"http://abbaksdkfhiuhejktest.com/" + getOauthApi + "?token=" + (string)tokenGet.payload.name);
+#endif
         }
         else {
             throw new Exception("Unknow status message recieved");
         }
     }
 
+    #region Networking
     private string Get(string uri, bool includeSessionToken = true) {
         HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri + (includeSessionToken?"?" + sessionToken:""));
         //request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
@@ -50,7 +54,6 @@ public class Client {
             return reader.ReadToEnd();
         }
     }
-
     private dynamic GetJsonDynamic(string request, bool includeSessionToken = true) {
         string json, uriRequest = ServerAddress + request;
         //json = Get(uriRequest, includeSessionToken);
@@ -60,6 +63,36 @@ public class Client {
         //return JObject.Parse(json);
     }
 
+    /// <summary>
+    /// Download file from server at remote path and store it locally at the download path, if fails then simply return remote path
+    /// </summary>
+    /// <param name="remoteFilePath">URL to the file</param>
+    /// <param name="downloadFilePath">Path (incl. file name) to local store</param>
+    /// <returns>If download succeeded then path of local file, otherwise path to remote file</returns>
+    private DBMap.FilePath downloadFile(string remoteFilePath, string downloadFilePath) {
+        byte[] imageData;
+        // TODO: Certificate validation
+        ServicePointManager.ServerCertificateValidationCallback += (send, certificate, chain, sslPolicyErrors) => { return true; };
+        using (WebClient client = new WebClient()) {
+            try {
+                imageData = client.DownloadData(remoteFilePath);
+            }
+            catch (Exception e) {
+                Debug.Log(e);
+                return new DBMap.FilePath(true, remoteFilePath);
+            }
+        }
+        string dirPath = Path.GetDirectoryName(downloadFilePath);
+        if (!Directory.Exists(dirPath))
+            Directory.CreateDirectory(dirPath);
+        using (BinaryWriter bw = new BinaryWriter(new FileStream(downloadFilePath, FileMode.Create))) {
+            bw.Write(imageData);
+        }
+        return new DBMap.FilePath(false, downloadFilePath);
+    }
+    #endregion
+
+    #region Events
     /// <summary>
     /// Sends a get request to server to fetch all the events
     /// </summary>    
@@ -83,7 +116,15 @@ public class Client {
         return events;
     }
 
+    public bool SetInterest(long eventID, bool isInterested = true) {
+        // TODO: get user
+        dynamic jsonResponse = GetJsonDynamic(string.Format(isInterested ? getInterested : getUninterested, "usr", eventID));
+        //bool success = jsonAck.Success;
+        return true;
+    }
+    #endregion
 
+    #region Maps
     /// <summary>
     /// Sends a get request to server to fetch all the maps and then downloads all the map graphics
     /// </summary>
@@ -115,39 +156,51 @@ public class Client {
         } else
             return false;
     }
+    #endregion
 
+    #region Achievements
     /// <summary>
-    /// Download file from server at remote path and store it locally at the download path, if fails then simply return remote path
+    /// Sends a get request to server to fetch all the maps and then downloads all the map graphics
     /// </summary>
-    /// <param name="remoteFilePath">URL to the file</param>
-    /// <param name="downloadFilePath">Path (incl. file name) to local store</param>
-    /// <returns>If download succeeded then path of local file, otherwise path to remote file</returns>
-    private DBMap.FilePath downloadFile(string remoteFilePath, string downloadFilePath) {
-        byte[] imageData;
-        // TODO: Certificate validation
-        ServicePointManager.ServerCertificateValidationCallback += (send, certificate, chain, sslPolicyErrors) => { return true; };
-        using (WebClient client = new WebClient()) {
-            try {
-                imageData = client.DownloadData(remoteFilePath);
-            } catch (Exception e) {
-                Debug.Log(e);
-                return new DBMap.FilePath(true, remoteFilePath);
-            }
+    /// <returns>List of maps we got from the server</returns>
+    public List<DBAchievement> GetAchievements() {
+        dynamic jsonResponse = GetJsonDynamic(getAchievementsApi);
+
+        List<DBAchievement> achievements = new List<DBAchievement>();
+        // TODO: check exact wording of error message
+        if (errorText.CompareTo((string)jsonResponse.status) == 0) {
+
+        } else if (okText.CompareTo((string)jsonResponse.status) == 0) {
+            DBAchievement achievement = new DBAchievement((long)jsonResponse.payload.id, (string)jsonResponse.payload.name, (string)jsonResponse.payload.description, (bool)jsonResponse.payload.won);
+            achievements.Add(achievement);
+        } else {
+            throw new Exception("Unknow status message recieved");
         }
-        string dirPath = Path.GetDirectoryName(downloadFilePath);
-        if (!Directory.Exists(dirPath))
-            Directory.CreateDirectory(dirPath);
-        using (BinaryWriter bw = new BinaryWriter(new FileStream(downloadFilePath, FileMode.Create))){
-            bw.Write(imageData);
-        }
-        return new DBMap.FilePath(false, downloadFilePath);
+        return achievements;
     }
 
     public bool CompleteAchievement(long achievementID) {
         // TODO: get user
-        string request = ServerAddress + "api /" + "TODO: USER HERE" + "/achieved/" + achievementID;
-        dynamic jsonAck = JsonConvert.DeserializeObject(Get(request));
+        dynamic jsonResponse = GetJsonDynamic(string.Format(getAchieved, "usr", achievementID));
+
         //bool success = jsonAck.Success;
         return true;
     }
+    #endregion
+
+    #region Users
+    public bool QueryUser(long userID) {
+        dynamic jsonResponse = GetJsonDynamic(string.Format(getQueryUser, "usr"));
+
+        // TODO: Parse response
+        return true;
+    }
+
+    public DBPlayer GetUserProfile(long userID) {
+        dynamic jsonResponse = GetJsonDynamic(string.Format(getProfileUser, "usr"));
+
+        // TODO: Parse response
+        return null;
+    }
+    #endregion
 }

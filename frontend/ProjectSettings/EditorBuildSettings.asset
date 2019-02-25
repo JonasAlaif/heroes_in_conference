@@ -29,4 +29,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainMenu.unity
     guid: a12c18b966e63407eb8c98c25dfc55c2
+  - enabled: 1
+    path: Assets/Scenes/InventoryScene.unity
+    guid: 82daea82f53d92a4e988241ca207e430
+  - enabled: 1
+    path: Assets/Scenes/MainMenuRaz.unity
+    guid: 3837887b413b831418a46fe8da30a5a8
+  - enabled: 1
+    path: Assets/Scenes/ModelViewer.unity
+    guid: a4aa43de2fb13ca4cafeda8029d6067d
   m_configObjects: {}

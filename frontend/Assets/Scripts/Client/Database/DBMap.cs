@@ -21,6 +21,7 @@ public class DBMap {
     }
 
     // TODO: move this class outside of DBMap, since it isnt unique to that
+    [Serializable]
     public class FilePath {
         public readonly bool IsRemote;
         public readonly string Path;
