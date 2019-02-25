@@ -8,15 +8,17 @@ using Newtonsoft.Json;
 using UnityEngine;
 
 public class Client {
+    // TODO: check exact wording of error message
     const string errorText = "error", okText = "ok";
     const string getMapsApi = "api/maps", getEventsApi = "api/events", getAchievementsApi = "api/achievements", getGroupsApi = "api/groups", getOauthApi = "api/oauth/", 
-        getAchieved = "api/{0}/achieved/{1}", getInterested = "api/{0}/interested/{1}", getUninterested = "api/{0}/uninterested/{1}", getQueryUser = "api/users/query/{0}", getProfileUser = "api/users/profile/{0}";
+        getAchieved =  "api/user/achieved/{0}?", getAllMyInterested = "api/user/interested?",   getInterested  = "api/user/interested/{0}?", getUninterested = "api/user/uninterested/{0}?",
+        getQueryUser = "api/users/query/{0}?",  getProfileUser =      "api/users/profile/{0}?", getCurrentUser = "api/user?";
 
     /// <summary>
     /// The server that the client will be talking to
     /// </summary>
     public string ServerAddress { get => (serverAddress + (serverAddress.EndsWith("/") ? "" : "/")); set => serverAddress = value; }
-    private string serverAddress = @"https://b77423f9.ngrok.io/";
+    private string serverAddress = @"https://39e32750.ngrok.io/";
 
     /// <summary>
     /// The session token that we get when authenticated with the server
@@ -28,15 +30,16 @@ public class Client {
     private string downloadPath;
 
     public Client(string downloadPath) {
+        //GetEvents();
         this.downloadPath = downloadPath;
-        dynamic tokenGet = GetJsonDynamic(getOauthApi, false);
+        dynamic tokenGet = GetJsonDynamic(getOauthApi);
         if (errorText.CompareTo((string)tokenGet.status) == 0) {
 
         }
         else if (okText.CompareTo((string)tokenGet.status) == 0) {
-#if !UNITY_EDITOR
-            Application.OpenURL(@"http://abbaksdkfhiuhejktest.com/" + getOauthApi + "?token=" + (string)tokenGet.payload.name);
-#endif
+//#if !UNITY_EDITOR
+            Application.OpenURL(serverAddress + getOauthApi + "?session=" + (string)tokenGet.payload);
+//#endif
         }
         else {
             throw new Exception("Unknow status message recieved");
@@ -44,8 +47,8 @@ public class Client {
     }
 
     #region Networking
-    private string Get(string uri, bool includeSessionToken = true) {
-        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri + (includeSessionToken?"?" + sessionToken:""));
+    private string Get(string uri) {
+        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri + (uri.EndsWith("?") ? sessionToken : ""));
         //request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
         using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
@@ -54,11 +57,11 @@ public class Client {
             return reader.ReadToEnd();
         }
     }
-    private dynamic GetJsonDynamic(string request, bool includeSessionToken = true) {
+    private dynamic GetJsonDynamic(string request) {
         string json, uriRequest = ServerAddress + request;
-        //json = Get(uriRequest, includeSessionToken);
+        json = Get(uriRequest);
             // TODO: this is debug, remove later!
-            json = File.ReadAllText(@"DebugFiles\TestJson.txt");
+            //json = File.ReadAllText(@"DebugFiles\TestJson.txt");
         return JsonConvert.DeserializeObject(json);
         //return JObject.Parse(json);
     }
@@ -101,14 +104,16 @@ public class Client {
         dynamic jsonResponse = GetJsonDynamic(getEventsApi);
 
         List<DBEvent> events = new List<DBEvent>();
-        // TODO: check exact wording of error message
         if (errorText.CompareTo((string)jsonResponse.status) == 0) {
 
         }
         else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            DBEvent @event = new DBEvent((long)jsonResponse.payload.id, DateTime.Parse((string)jsonResponse.payload.start), DateTime.Parse((string)jsonResponse.payload.end),
-                                         (string)jsonResponse.payload.name, (string)jsonResponse.payload.description);
-            events.Add(@event);
+            for (int i = 0; i < jsonResponse.payload.Count; i++) {
+                dynamic eventI = jsonResponse.payload[i];
+                DBEvent @event = new DBEvent((long)eventI.id, DateTime.Parse((string)eventI.start), DateTime.Parse((string)eventI.end),
+                             (string)eventI.name, (string)eventI.desc);
+                events.Add(@event);
+            }
         }
         else {
             throw new Exception("Unknow status message recieved");
@@ -117,8 +122,7 @@ public class Client {
     }
 
     public bool SetInterest(long eventID, bool isInterested = true) {
-        // TODO: get user
-        dynamic jsonResponse = GetJsonDynamic(string.Format(isInterested ? getInterested : getUninterested, "usr", eventID));
+        dynamic jsonResponse = GetJsonDynamic(string.Format(isInterested ? getInterested : getUninterested, eventID));
         //bool success = jsonAck.Success;
         return true;
     }
@@ -133,7 +137,6 @@ public class Client {
         dynamic jsonResponse = GetJsonDynamic(getMapsApi);
 
         List<DBMap> maps = new List<DBMap>();
-        // TODO: check exact wording of error message
         if(errorText.CompareTo((string)jsonResponse.status) == 0) {
 
         } else if(okText.CompareTo((string)jsonResponse.status) == 0) {
@@ -167,7 +170,6 @@ public class Client {
         dynamic jsonResponse = GetJsonDynamic(getAchievementsApi);
 
         List<DBAchievement> achievements = new List<DBAchievement>();
-        // TODO: check exact wording of error message
         if (errorText.CompareTo((string)jsonResponse.status) == 0) {
 
         } else if (okText.CompareTo((string)jsonResponse.status) == 0) {
@@ -180,8 +182,7 @@ public class Client {
     }
 
     public bool CompleteAchievement(long achievementID) {
-        // TODO: get user
-        dynamic jsonResponse = GetJsonDynamic(string.Format(getAchieved, "usr", achievementID));
+        dynamic jsonResponse = GetJsonDynamic(string.Format(getAchieved, achievementID));
 
         //bool success = jsonAck.Success;
         return true;

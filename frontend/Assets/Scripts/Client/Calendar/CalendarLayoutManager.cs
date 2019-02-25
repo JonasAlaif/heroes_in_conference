@@ -12,7 +12,7 @@ using UnityEngine.UI;
 public class CalendarLayoutManager : MonoBehaviour {
     [SerializeField] private GameObject currentCalendar;
     [SerializeField] private RectTransform parentPanel;
-    [SerializeField] private Sprite botRightBorder, topLeftBorder;
+    [SerializeField] private Sprite botRightBorder, topLeftBorder, eventBorder;
     [SerializeField] private Font textFont;
 
     #region Debug
@@ -54,8 +54,12 @@ public class CalendarLayoutManager : MonoBehaviour {
             Debug.LogError("Trying to display no events!");
             return;
         }
-        List<DBEvent> sortedCalendar = allEvents.OrderBy(e => e.StartTime).ToList();
-        int calendarTotalDays = (sortedCalendar.Last().EndTime - sortedCalendar.First().StartTime).Days + 1;
+        // Ignores events that go over midnight!
+        List<LayoutEvent> sortedCalendar = new List<LayoutEvent>(allEvents.Select(dBEvent => new LayoutEvent(dBEvent)).OrderBy(ev => ev.Start).ThenBy(ev => ev.End).ToList());
+        LayoutEvents(sortedCalendar);
+        Queue<LayoutEvent> calendarQueue = new Queue<LayoutEvent>(sortedCalendar);
+
+        int calendarTotalDays = (sortedCalendar.Last().End - sortedCalendar.First().Start).Days + 1;
 
         if (calendarTotalDays > 7) {
             Debug.LogError("Trying to display events within a span of more than 7 days!");
@@ -78,13 +82,21 @@ public class CalendarLayoutManager : MonoBehaviour {
         RectTransform daysPanel = buildDaysPanel(scrollContentPanel, hoursWidth);
         setupScrolRect(calendarObject.gameObject, scrollContentPanel, eventsViewportPanel);
 
-        DateTime startDate = sortedCalendar.First().StartTime;
+        DateTime startDate = sortedCalendar.First().Start;
         for (int i = 0; i < calendarTotalDays; i++) {
             buildDayTitle(dayTitlesPanel, i, calendarTotalDays, startDate, over3Days);
 
             RectTransform dayPanel = buildDayPanel(daysPanel, i, calendarTotalDays);
             for(int j = 0; j < 24; j++) {
                 buildHourPanel(dayPanel, j);
+            }
+            if (calendarQueue.Count == 0)
+                continue;
+            while(calendarQueue.Peek().Start.Date == startDate.AddDays(i).Date) {
+                LayoutEvent le = calendarQueue.Dequeue();
+                buildEventPanel(dayPanel, le);
+                if (calendarQueue.Count == 0)
+                    break;
             }
         }
         for (int j = 1; j < 24; j++) {
@@ -100,6 +112,117 @@ public class CalendarLayoutManager : MonoBehaviour {
         currentCalendar = calendarObject.gameObject;
     }
 
+    public class LayoutEvent {
+        public readonly DBEvent dBEvent;
+        public float Left;
+        public float Right;
+        public LayoutEvent(DBEvent dBEvent) {
+            this.dBEvent = dBEvent;
+        }
+
+        public DateTime Start { get => dBEvent.StartTime; }
+        public DateTime End { get => dBEvent.EndTime; }
+
+        public bool CollidesWith(LayoutEvent other) {
+            return (End > other.Start && Start < other.End);
+        }
+    }
+
+    private float[] getWidthForeachEvent(SortedSet<DBEvent> calendar) {
+        // Creates a list of pairs of start and end times for each event
+        // Variable name shortened from startEndTimeTicks to sETT for later use
+        Tuple<long, long>[] sETT = calendar.Select(evnt => new Tuple<long, long>(evnt.StartTime.Ticks, evnt.EndTime.Ticks)).ToArray();
+        int[] allOverlapsAfter = new int[calendar.Count], allOverlapsBefore = new int[calendar.Count];
+        float[] widthPercentage = new float[calendar.Count];
+        for (int i = 0; i < calendar.Count; i++) {
+            for (int j = i + 1; j < calendar.Count; j++) {
+                // The calendar is sorted so j cannot be before i
+                bool iBeforeJ = sETT[i].Item2 <= sETT[j].Item1;
+                if (!iBeforeJ) {
+                    allOverlapsAfter[i]++;
+                    allOverlapsBefore[j]++;
+                } // Sorted so once j is after i no further j will overlap, can go onto next i
+                else break;
+            }
+            float baseWidth = 1f;
+            if(allOverlapsBefore[i] == 0) {
+                baseWidth /= allOverlapsAfter[i] + 1;
+            }
+            else {
+                for (int k = 0; k < allOverlapsBefore[i]; k++) {
+                    baseWidth -= widthPercentage[(i - 1) - k];
+                }
+            }
+            widthPercentage[i] = 1f / allOverlapsAfter[i];
+
+            // TODO: figure this out! Ahaha
+            widthPercentage[i] = 1f;
+        }
+        return widthPercentage;
+    }
+    
+    
+    /// Pick the left and right positions of each event, such that there are no overlap.
+    /// Step 3 in the algorithm.
+    void LayoutEvents(List<LayoutEvent> events) {
+        List<List<LayoutEvent>> columns = new List<List<LayoutEvent>>();
+        DateTime? lastEventEnding = null;
+        foreach (LayoutEvent ev in events) {
+            if (ev.Start >= lastEventEnding) {
+                PackEvents(columns);
+                columns.Clear();
+                lastEventEnding = null;
+            }
+            bool placed = false;
+            foreach (List<LayoutEvent> col in columns) {
+                if (!col.Last().CollidesWith(ev)) {
+                    col.Add(ev);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                columns.Add(new List<LayoutEvent> { ev });
+            }
+            if (lastEventEnding == null || ev.End > lastEventEnding.Value) {
+                lastEventEnding = ev.End;
+            }
+        }
+        if (columns.Count > 0) {
+            PackEvents(columns);
+        }
+    }
+
+    /// Set the left and right positions for each event in the connected group.
+    /// Step 4 in the algorithm.
+    void PackEvents(List<List<LayoutEvent>> columns) {
+        float numColumns = columns.Count;
+        int iColumn = 0;
+        foreach (var col in columns) {
+            foreach (var ev in col) {
+                int colSpan = ExpandEvent(ev, iColumn, columns);
+                ev.Left = iColumn / numColumns;
+                ev.Right = (iColumn + colSpan) / numColumns;
+            }
+            iColumn++;
+        }
+    }
+
+    /// Checks how many columns the event can expand into, without colliding with
+    /// other events.
+    /// Step 5 in the algorithm.
+    int ExpandEvent(LayoutEvent ev, int iColumn, List<List<LayoutEvent>> columns) {
+        int colSpan = 1;
+        foreach (var col in columns.Skip(iColumn + 1)) {
+            foreach (var ev1 in col) {
+                if (ev1.CollidesWith(ev)) {
+                    return colSpan;
+                }
+            }
+            colSpan++;
+        }
+        return colSpan;
+    }
 
 
 
@@ -246,6 +369,25 @@ public class CalendarLayoutManager : MonoBehaviour {
         dayTitleTextUI.color = Color.grey;
         dayTitleTextUI.text = hour.ToString().PadLeft(2, '0') + ":00";
         return hourPanel;
+    }
+    
+    /// <summary>
+    /// Build event panel
+    /// </summary>
+    private RectTransform buildEventPanel(RectTransform dayPanel, LayoutEvent theEvent) {
+        RectTransform eventPanel = new GameObject("Event " + theEvent.dBEvent.EventName + " Panel").AddComponent<RectTransform>();
+        eventPanel.SetParent(dayPanel);
+        setRectTransformPos(eventPanel, theEvent.Left, 1 - (theEvent.End.Hour + (theEvent.End.Minute / 60f) - 1) / 24f,
+                                      theEvent.Right, 1 - (theEvent.Start.Hour + (theEvent.Start.Minute / 60f) - 1) / 24f);
+        /*
+        Text dayTitleTextUI = eventPanel.gameObject.AddComponent<Text>();
+        dayTitleTextUI.alignment = TextAnchor.MiddleCenter;
+        dayTitleTextUI.fontSize = 13;
+        dayTitleTextUI.font = textFont;
+        dayTitleTextUI.color = Color.grey;
+        dayTitleTextUI.text = hour.ToString().PadLeft(2, '0') + ":00";*/
+        addBorder(eventPanel.gameObject, eventBorder);
+        return eventPanel;
     }
     #endregion
 
