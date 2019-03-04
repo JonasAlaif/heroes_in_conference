@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections;
 using System.IO;
@@ -21,6 +21,7 @@ public class Database {
             events = new Dictionary<long, DBEvent>();
         if (achievements == null)
             achievements = new Dictionary<long, DBAchievement>();
+
         if (wonAchievements == null)
             wonAchievements = new HashSet<long>();
         if (contentGroups == null)
@@ -41,6 +42,7 @@ public class Database {
             } catch (SerializationException ex) { 
                 throw new SerializationException(((object)ex).ToString() + "\n" + ex.Source);
             }
+
             // Need to init to deal with loading older versions of the database that may not have all lists/hashsets etc initialised
             db.init();
             return db;
@@ -110,6 +112,10 @@ public class Database {
         return achievements.Values.FirstOrDefault(a => a.AchievementName == name);
     }
 
+    public DBAchievement GetAchievementObjByName(string name) {
+        return achievements.Values.FirstOrDefault(a => a.AchievementName == name);
+    }
+
     public List<DBAchievement> GetAllWonAchievements() {
         return wonAchievements.Select(id => achievements[id]).ToList();
     }
@@ -117,6 +123,7 @@ public class Database {
     public void SetAllWonAchievements(List<long> wonAchs) {
         wonAchievements = new HashSet<long>(wonAchs);
     }
+
     #endregion
 
     #region Events

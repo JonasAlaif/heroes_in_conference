@@ -144,6 +144,7 @@ public class NetworkDatabase : MonoBehaviour {
         return newInterest;
     }
 
+
     #region Items
     /// <summary>
     /// Adds the specified amount of items to the local database. If the item doens exist yet, just create a new one with count amount

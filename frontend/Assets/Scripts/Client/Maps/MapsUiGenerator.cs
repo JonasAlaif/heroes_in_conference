@@ -15,7 +15,7 @@ public class MapsUiGenerator : MonoBehaviour {
     [SerializeField] TMP_Dropdown mapsSelector;
     [SerializeField] List<RectTransform> mapGameObjects;
     [SerializeField] Object poiPrefab;
-    
+
     private void Start() {
         NetworkDatabase.NDB.MapsDownloaded.AddListener(() => shouldBuildMaps = true);
     }
