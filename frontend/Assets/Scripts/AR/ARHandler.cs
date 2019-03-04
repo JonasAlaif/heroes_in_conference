@@ -4,77 +4,88 @@ using UnityEngine;
 
 public class ARHandler : MonoBehaviour
 {
-    public static Dictionary<string, bool> active = new Dictionary<string, bool>();
+    // Hardcoded content groups
+    public GameObject[] resources;
+    public GameObject[] challenges;
 
-    // Start is called before the first frame update
     void Start()
     {
-	    // Lock screen rotation in the AR camera, as rotation resets and reloads the GameObjects
-        active.Add("challenge", NetworkDatabase.NDB.GetContentGroupActiveByName("challenge"));
-        active.Add("resource", NetworkDatabase.NDB.GetContentGroupActiveByName("resource"));
-
-
-        InvokeRepeating("CheckActive", 2.0f, 5.0f);
     }
 
     void Update()
     {
-        print(ARHandler.active["resource"]);
-    }
-
-    void CheckActive()
-    {
-        active["challenge"] = NetworkDatabase.NDB.GetContentGroupActiveByName("challenge");
-        active["resource"] = NetworkDatabase.NDB.GetContentGroupActiveByName("resource");
-
+        // Update content groups based on NetworkDatabase
+        toggleContentGroup(challenges, NetworkDatabase.NDB.GetContentGroupActiveByName("challenge"));
+        toggleContentGroup(resources, NetworkDatabase.NDB.GetContentGroupActiveByName("resource"));
     }
 
     public static void GetAchievement(string achievement)
     {
+        // Get achievement object 'achievement'
         DBAchievement mChiev = NetworkDatabase.NDB.GetAchievementByName(achievement);
+        // Set achievement in Network Database
         NetworkDatabase.NDB.SetAchievement(mChiev.AchievementID);
+        // Trigger popup window with achievement title and description
         PopupScript.ps.GotAchievement(mChiev.AchievementName, mChiev.AchievementDescription);
+
+        // Get final achievement for getting all achievements
         if (NetworkDatabase.NDB.GetAllWonAchievements().Count == NetworkDatabase.NDB.GetAchievements().Count-1)
         {
             NetworkDatabase.NDB.SetAchievement(NetworkDatabase.NDB.GetAchievementIdByName("Mr. smartypants"));
         }
 
-        if (Ore())
+        if (ore())
         {
             NetworkDatabase.NDB.SetAchievement(NetworkDatabase.NDB.GetAchievementIdByName("It's all mine"));
+
+            DBAchievement mChiev2 = NetworkDatabase.NDB.GetAchievementByName("It's all mine");
+            NetworkDatabase.NDB.SetAchievement(mChiev2.AchievementID);
+            PopupScript.ps.GotAchievement(mChiev2.AchievementName, mChiev2.AchievementDescription);
         }
         
-        if (Wood())
+        if (wood())
         {
             NetworkDatabase.NDB.SetAchievement(NetworkDatabase.NDB.GetAchievementIdByName("Mourning wood"));
+            
+            DBAchievement mChiev2 = NetworkDatabase.NDB.GetAchievementByName("Mourning wood");
+            NetworkDatabase.NDB.SetAchievement(mChiev2.AchievementID);
+            PopupScript.ps.GotAchievement(mChiev2.AchievementName, mChiev2.AchievementDescription);
         }
         
-        if (Fish())
+        if (fish())
         {
             NetworkDatabase.NDB.SetAchievement(NetworkDatabase.NDB.GetAchievementIdByName("Ocean man"));
+            
+            DBAchievement mChiev2 = NetworkDatabase.NDB.GetAchievementByName("Ocean man");
+            NetworkDatabase.NDB.SetAchievement(mChiev2.AchievementID);
+            PopupScript.ps.GotAchievement(mChiev2.AchievementName, mChiev2.AchievementDescription);
         }
     }
 
-    private static bool Ore()
+    // Return all ore collected
+    private static bool ore()
     {
         return (NetworkDatabase.NDB.GetAchievementWonByName("Grumpy") && 
                 NetworkDatabase.NDB.GetAchievementWonByName("Bashful") &&
                     NetworkDatabase.NDB.GetAchievementWonByName("Dopey"));
     }
 
-    private static bool Wood()
+    // Return all wood collected
+    private static bool wood()
     {
         return (NetworkDatabase.NDB.GetAchievementWonByName("It's treeson!") && 
                 NetworkDatabase.NDB.GetAchievementWonByName("Timber!!!") &&
                     NetworkDatabase.NDB.GetAchievementWonByName("Run Forest, run!"));
     }
 
-    private static bool Fish()
+    // Return all fish collected
+    private static bool fish()
     {
         return (NetworkDatabase.NDB.GetAchievementWonByName("Finding Nome") && 
                 NetworkDatabase.NDB.GetAchievementWonByName("Finding Dyro"));
     }
 
+    // Return name of object interacted with (touched) or empty string if none
     public static string GetHitIfAny()
     {
         if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
@@ -87,5 +98,14 @@ public class ARHandler : MonoBehaviour
             }
         }
         return "";
+    }
+
+    // Set imagetargets activeness to content group from Database
+    private void toggleContentGroup(GameObject[] group, bool active)
+    {
+        for (int i = 0; i < group.Length; ++i)
+        {
+            group[i].SetActive(active);
+        }
     }
 }
