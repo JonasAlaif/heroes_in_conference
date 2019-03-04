@@ -6,7 +6,6 @@ using System.Linq;
 using System.IO;
 using System.Net.NetworkInformation;
 using Newtonsoft.Json;
-using UnityEngine;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 
@@ -119,10 +118,6 @@ public class Client {
                 loginAddr = null;
                 return true;
             }
-        if (!checkConnectivity()) {
-            loginAddr = null;
-            return false;
-        }
 
         dynamic jsonResponse = GetJsonDynamic(getOauthApi);
         if (jsonResponse == null) {
@@ -147,23 +142,6 @@ public class Client {
     public void LoginSucess() {
         sessionToken.LoggedIn();
     }
-
-    private bool checkConnectivity() {
-        return true;
-        System.Net.NetworkInformation.Ping netMon = new System.Net.NetworkInformation.Ping();
-        try {
-            PingReply response = netMon.Send(staticServerCheckAddress, 500);
-            if (response != null) {
-                return response.Status == IPStatus.Success;
-            }
-        } catch (Exception e) {
-            Debug.LogError(e.ToString());
-            return false;
-        }
-
-        return false;
-    }
-    
     
     public bool checkAuthenticated() {
         dynamic jsonResponse = GetJsonDynamic(getCurrentUser);
@@ -187,7 +165,7 @@ public class Client {
     private string Get(string uri) {
         HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri + (uri.EndsWith("?") ? "session=" + sessionToken.Token : ""));
         //request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-        Debug.Log(uri + (uri.EndsWith("?") ? "session=" + sessionToken.Token : ""));
+
         try {
             using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
             using (Stream stream = response.GetResponseStream())
@@ -195,16 +173,12 @@ public class Client {
                 return reader.ReadToEnd();
             }
         } catch (Exception e) {
-            Debug.LogError(e);
             return null;
         }
     }
     private dynamic GetJsonDynamic(string request) {
         string json, uriRequest = ServerAddress + request;
         json = Get(uriRequest);
-        // TODO: this is debug, remove later!
-        //json = File.ReadAllText(@"DebugFiles\TestJson.txt");
-        Debug.Log(json);
         if (json == null)
             return null;
         else
@@ -257,13 +231,11 @@ public class Client {
             handleError();
         }
         else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " events from server");
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic eventI = jsonResponse.payload[i];
                 long id = (long)eventI.id;
                 DateTime start = new DateTime(1970, 1, 1, 0, 0, 0).AddSeconds((long)eventI.start.seconds);
                 DateTime end = new DateTime(1970, 1, 1, 0, 0, 0).AddSeconds((long)eventI.end.seconds);
-                //Debug.Log("Event " + i + " id is " + id + " start is " + start + " end is " + end);
                 DBEvent @event = new DBEvent(id, start, end, (string)eventI.name, (string)eventI.desc);
                 events.Add(@event);
             }
@@ -316,11 +288,9 @@ public class Client {
         if(errorText.CompareTo((string)jsonResponse.status) == 0) {
             handleError();
         } else if(okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " maps from server");
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic mapI = jsonResponse.payload[i];
                 DBMap map = new DBMap((long)mapI.id, (string)mapI.name, DateTime.Now.AddDays(1), serverAddress + (string)mapI.image);
-                Debug.Log("Remote fp is " + map.FP.Path);
                 TryDownloadMap(map);
                 maps.Add(map);
             }
@@ -340,7 +310,6 @@ public class Client {
             handleError();
         }
         else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " points of interest from server");
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic poiI = jsonResponse.payload[i];
                 DBMapPOI poi = new DBMapPOI((long)poiI.id, (string)poiI.name, (string)poiI.desc, (int)poiI.x, (int)poiI.y);
@@ -381,7 +350,6 @@ public class Client {
         if (errorText.CompareTo((string)jsonResponse.status) == 0) {
             handleError();
         } else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " achievements from server");
 
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic achI = jsonResponse.payload[i];
@@ -437,7 +405,6 @@ public class Client {
             return false;
         }
         else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " users from server");
             if (jsonResponse.payload.Count == 0)
                 return true;
 
@@ -496,7 +463,6 @@ public class Client {
             handleError();
         }
         else if (okText.CompareTo((string)jsonResponse.status) == 0) {
-            //Debug.Log("Got " + jsonResponse.payload.Count + " content groups from server");
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic cgI = jsonResponse.payload[i];
                 cGroups[(string)cgI.name] = (bool)cgI.enabled;
