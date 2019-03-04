@@ -13,7 +13,6 @@ public class ResourceSwiper : MonoBehaviour
 	void Start()
 	{
 		swipeCount = 0;
-        resource.SetActive(ARHandler.active["resource"]);
         meshRenderer = resource.GetComponent<MeshRenderer>();
 
     }

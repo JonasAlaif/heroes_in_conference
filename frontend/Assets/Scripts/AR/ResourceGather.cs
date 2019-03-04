@@ -13,8 +13,6 @@ public class ResourceGather : MonoBehaviour
 	void Start()
 	{
         hitCounter = 0;
-        resource.SetActive(ARHandler.active["resource"]);
-        obj.SetActive(ARHandler.active["resource"]);
         resourceCollected.SetActive(false);
 	}
 

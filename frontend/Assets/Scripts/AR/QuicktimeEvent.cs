@@ -14,8 +14,6 @@ public class QuicktimeEvent : MonoBehaviour
     float probability;
     int reactionFrames;
 
-    bool f1;
-
     void Start()
     {
         for (int i = 0; i < fish.Length; ++i)
@@ -29,39 +27,36 @@ public class QuicktimeEvent : MonoBehaviour
         // Change this value to make sphere appear more often
         probability = 0.3f;
         reactionFrames = 0;
-
-        obj.SetActive(ARHandler.active["resource"]);
-        f1 = false;
     }
 
     void Update()
     {
+        // If fish are toggled
         if (reactionFrames > 0)
         {
             reactionFrames--;
 
             string hit = ARHandler.GetHitIfAny();
 
-            for (int i = 0; i < fish.Length; ++i)
+            if (hit.Equals(hitSphere[0].transform.name))
             {
-                if (hit.Equals(hitSphere[i].transform.name))
-                {
-                    Destroy(fish[i]);
-                    Destroy(hitSphere[i]);
-                    feedbackMarker[i].SetActive(true);
-                    if (!f1)
-                    {
-                        ARHandler.GetAchievement("Finding Nome");
-                    }
-                    else
-                    {
-                        ARHandler.GetAchievement("Finding Dyro");
-                    }
-                }
+                Destroy(fish[0]);
+                Destroy(hitSphere[0]);
+                feedbackMarker[0].SetActive(true);
+                ARHandler.GetAchievement("Finding Nome");
             }
-        }
-        else if (ARHandler.active["resource"])
+
+            if (hit.Equals(hitSphere[0].transform.name))
+            {
+                Destroy(fish[1]);
+                Destroy(hitSphere[1]);
+                feedbackMarker[1].SetActive(true);
+                ARHandler.GetAchievement("Finding Dyro");
+            }
+        } 
+        else 
         {
+            // Toggle one fish at a time
             float selector = Random.value;
             if (selector < 0.5f)
             {
