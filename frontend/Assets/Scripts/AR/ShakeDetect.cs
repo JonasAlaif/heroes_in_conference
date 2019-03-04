@@ -27,7 +27,7 @@ public class ShakeDetect : MonoBehaviour
 		lowPassValue = Input.acceleration;
         // Recommended value according to certain manufacturers
         minShake = 2.0f;
-        obj.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("King of the slimes").Won);
+        obj.SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("King of the slimes"));
         hint.SetActive(false);
         sphere.SetActive(false);
         shakeCount = 0;

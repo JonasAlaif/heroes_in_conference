@@ -13,9 +13,9 @@ public class Ore3 : MonoBehaviour
 	void Start()
 	{
         hitCounter = 0;
-        resource.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Dopey").Won);
-        obj.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Dopey").Won);
-        resourceCollected.SetActive(NetworkDatabase.NDB.GetAchievementObjByName("Dopey").Won); 
+        resource.SetActive(ARHandler.active["resource"]);
+        obj.SetActive(ARHandler.active["resource"]);
+        resourceCollected.SetActive(false);
 	}
 
 	void Update()

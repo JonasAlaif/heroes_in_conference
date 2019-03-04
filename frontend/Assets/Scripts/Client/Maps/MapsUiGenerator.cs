@@ -15,21 +15,24 @@ public class MapsUiGenerator : MonoBehaviour {
     [SerializeField] TMP_Dropdown mapsSelector;
     [SerializeField] List<RectTransform> mapGameObjects;
     [SerializeField] Object poiPrefab;
-
-    bool shouldBuildMaps;
+    
     private void Start() {
-        mapGameObjects = new List<RectTransform>();
         NetworkDatabase.NDB.MapsDownloaded.AddListener(() => shouldBuildMaps = true);
+    }
 
+    private bool shouldBuildMaps;
+    private void Update() {
         if (shouldBuildMaps) {
-            BuildMaps();
+            buildMaps();
             shouldBuildMaps = false;
         }
     }
 
-    private void BuildMaps() {
-        foreach (RectTransform rt in mapGameObjects)
-            Destroy(rt.gameObject);
+    private void buildMaps() {
+        if (mapGameObjects != null) {
+            foreach (RectTransform rt in mapGameObjects)
+                Destroy(rt.gameObject);
+        }
         mapGameObjects = new List<RectTransform>();
 
         List<DBMap> allMaps = NetworkDatabase.NDB.GetMaps();

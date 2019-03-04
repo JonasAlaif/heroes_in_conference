@@ -10,7 +10,7 @@ public class HintFind : MonoBehaviour
 
 	void Start()
 	{
-        hint.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("What a steal!").Won);
+        obj.SetActive(ARHandler.active["challenge"]);
 	}
 
 	void Update()
@@ -22,7 +22,6 @@ public class HintFind : MonoBehaviour
         }
         else if (ARHandler.GetHitIfAny().Equals(collide.name))
         {
-            // Rotate 'obj' to face the camera (only in the y axis)
             obj.transform.forward = (Vector3.ProjectOnPlane(-Camera.main.transform.forward, new Vector3(0, 1, 0)));
         }
 	}

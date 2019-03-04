@@ -29,13 +29,13 @@ public class KeyPad : MonoBehaviour
         hintsphere.SetActive(false);
         for (int i = 0; i < numpad.Length; i++)
         {
-            numpad[i].SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Crab rave").Won);
-            shells[i].SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Crab rave").Won);
+            numpad[i].SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Crab rave"));
+            shells[i].SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Crab rave"));
         }
 
         for (int i = 0; i < feedbackMarker.Length; i++)
         {
-            feedbackMarker[i].SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Crab rave").Won);
+            feedbackMarker[i].SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Crab rave"));
         }
 
 

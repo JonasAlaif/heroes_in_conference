@@ -153,7 +153,7 @@ cache/
 TestResult.xml
 
 # Unity Assets
-Assets/TextMesh Pro
+**/Assets/TextMesh Pro*
 
 # Ignore unity scenes as they are synced by the Unity Collaborate instead
 **/Scenes/
@@ -167,4 +167,8 @@ credentials.tar.gz
 nohup.out
 
 
-**/Assets/Models/
+**/Assets/Models*
+**/Assets/Fantasy Wooden GUI  Free*
+**/Assets/UI*
+**/Assets/FingersLite*
+**/Assets/Graphics/UI*

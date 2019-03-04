@@ -13,24 +13,21 @@ public class Wood1 : MonoBehaviour
 	void Start()
 	{
 		swipeCount = 0;
-        resource.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Run Forest, run!").Won);
+        resource.SetActive(ARHandler.active["resource"]);
         meshRenderer = resource.GetComponent<MeshRenderer>();
 
     }
 
 	void Update()
 	{
-        if (meshRenderer.isVisible)
-        {
-            if (swipe.GetRight() || swipe.GetLeft())
-		    {
-			    swipeCount++;
-		    }
-		    if (swipeCount == 2)
-		    {
-                Destroy(resource);
-                ARHandler.GetAchievement("Run Forest, run!");
-		    }
-        }
+        if ((swipe.GetLeft() || swipe.GetRight()) && meshRenderer.isVisible)
+		{
+			swipeCount++;
+		}
+		if (swipeCount == 2)
+		{
+            Destroy(resource);
+            ARHandler.GetAchievement("Run Forest, run!");
+		}
 	}
 }

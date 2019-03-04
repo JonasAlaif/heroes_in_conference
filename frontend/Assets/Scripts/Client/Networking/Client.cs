@@ -385,7 +385,7 @@ public class Client {
 
             for (int i = 0; i < jsonResponse.payload.Count; i++) {
                 dynamic achI = jsonResponse.payload[i];
-                DBAchievement achievement = new DBAchievement((long)achI.id, (string)achI.name, (string)achI.desc, false);
+                DBAchievement achievement = new DBAchievement((long)achI.id, (string)achI.name, (string)achI.desc);
                 achievements.Add(achievement);
             }
         } else {

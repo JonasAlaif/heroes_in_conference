@@ -19,11 +19,11 @@ public class SwipeControl : MonoBehaviour
     void Start()
     {
         moveTo = obj.transform.position;
-        hint.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Yak whisperer").Won);
-        hintsphere.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Yak whisperer").Won);
+        hint.SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Yak whisperer"));
+        hintsphere.SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Yak whisperer"));
         for (int i = 0; i < planks.Length; ++i)
         {
-            planks[i].SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("Yak whisperer").Won);
+            planks[i].SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("Yak whisperer"));
         }
 
         which = 0;

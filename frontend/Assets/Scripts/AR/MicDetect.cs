@@ -104,7 +104,7 @@ public class MicDetect : MonoBehaviour
         moveTo = new Vector3(0, 0, 0.2f);
         hint.SetActive(false);
         hintsphere.SetActive(false);
-        obj.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("TNT I'm Zygomite!").Won);
+        obj.SetActive(!NetworkDatabase.NDB.GetAchievementWonByName("TNT I'm Zygomite!"));
         skin = obj.GetComponentInChildren<SkinnedMeshRenderer>();
     }
 

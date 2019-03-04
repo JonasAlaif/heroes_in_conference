@@ -4,9 +4,8 @@ using UnityEngine;
 
 public class TakingInventory : MonoBehaviour
 {
-    void Start()
-    {
-        if (!NetworkDatabase.NDB.GetAchievementObjByName("Taking inventory...").Won)
+    void Start() {
+        if (!NetworkDatabase.NDB.GetAchievementWonByName("Taking inventory..."))
         {
             gameObject.SetActive(true);
             NetworkDatabase.NDB.SetAchievement(NetworkDatabase.NDB.GetAchievementIdByName("Taking inventory..."));

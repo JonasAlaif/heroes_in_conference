@@ -10,26 +10,24 @@ public class Wood3 : MonoBehaviour
 	int swipeCount;
     MeshRenderer meshRenderer;
 
-    void Start()
+	void Start()
 	{
 		swipeCount = 0;
-        resource.SetActive(!NetworkDatabase.NDB.GetAchievementObjByName("It's treeson!").Won);
+        resource.SetActive(ARHandler.active["resource"]);
         meshRenderer = resource.GetComponent<MeshRenderer>();
+
     }
 
 	void Update()
 	{
-        if (meshRenderer.isVisible)
-        {
-            if (swipe.GetLeft() || swipe.GetRight())
-		    {
-			    swipeCount++;
-	    	}
-		    if (swipeCount == 2)
-    		{
-                Destroy(resource);
-                ARHandler.GetAchievement("It's treeson!");
-    		}
-	    }
-    }
+        if ((swipe.GetLeft() || swipe.GetRight()) && meshRenderer.isVisible)
+		{
+			swipeCount++;
+		}
+		if (swipeCount == 2)
+		{
+            Destroy(resource);
+            ARHandler.GetAchievement("It's treeson!");
+		}
+	}
 }

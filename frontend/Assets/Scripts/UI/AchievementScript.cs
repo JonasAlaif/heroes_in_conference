@@ -42,10 +42,11 @@ public class AchievementScript : MonoBehaviour {
             TextMeshProUGUI[] texts = achGO.GetComponentsInChildren<TextMeshProUGUI>();
             texts[0].text = ach.AchievementName;
             texts[1].text = ach.AchievementDescription;
-            if(!ach.Won)
+            if(!NetworkDatabase.NDB.GetAchievementWonById(ach.AchievementID))
                 achGO.transform.GetChild(3).gameObject.SetActive(false);
             achievementButtons.Add(ach.AchievementID, achGO);
         }
+        achievementContent.anchoredPosition = new Vector2(0, -5000);
     }
 
     private void ShowWon() {
