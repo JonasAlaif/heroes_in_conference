@@ -1,8 +1,0 @@
-{
-    "status": "ok",
-    "payload": {
-         "id": 3,
-	 "name" : "TestMap",
-         "image": "https://muarchives.missouri.edu/historic/maps/BM_map_1.jpg"
-     }
-}

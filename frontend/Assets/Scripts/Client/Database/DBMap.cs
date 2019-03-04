@@ -10,24 +10,23 @@ public class DBMap {
     public readonly long MapID;
     public readonly string MapName;
     public readonly DateTime ValidBefore;
-    
-    private FilePath fp;
-    public FilePath FP { get => fp; set => fp = value; }
+    public FilePath FP;
 
-    public DBMap(long mapID, string mapName, DateTime validBefore) {
+    public List<DBMapPOI> dBMapPOIs;
+
+    public DBMap(long mapID, string mapName, DateTime validBefore, string filePath, bool remote = true) {
         MapID = mapID;
         MapName = mapName;
         ValidBefore = validBefore;
+        dBMapPOIs = new List<DBMapPOI>();
+        FP = new FilePath(remote, filePath);
     }
 
-    // TODO: move this class outside of DBMap, since it isnt unique to that
-    public class FilePath {
-        public readonly bool IsRemote;
-        public readonly string Path;
+    public void AddPoi(DBMapPOI poiToAdd) {
+        dBMapPOIs.Add(poiToAdd);
+    }
 
-        public FilePath(bool isRemote, string path) {
-            IsRemote = isRemote;
-            Path = path;
-        }
+    public void SetAllMapPois(List<DBMapPOI> toSet) {
+        dBMapPOIs = new List<DBMapPOI>(toSet);
     }
 }

@@ -4,16 +4,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
+using UnityEngine.EventSystems;
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 /// <summary>
 /// Is handed a list of DBEvents and will create a calendar GameObject for these events
 /// </summary>
 public class CalendarLayoutManager : MonoBehaviour {
     [SerializeField] private GameObject currentCalendar;
     [SerializeField] private RectTransform parentPanel;
-    [SerializeField] private Sprite botRightBorder, topLeftBorder;
+    [SerializeField] private Sprite botRightBorder, topLeftBorder, eventBorder;
     [SerializeField] private Font textFont;
+    [SerializeField] private TMP_FontAsset tmpFont;
+
+    public bool buildTheCal;
 
     #region Debug
     public List<DBEvent> debugCalendar;
@@ -21,10 +26,12 @@ public class CalendarLayoutManager : MonoBehaviour {
     public bool addFollowingEventToCal;
     public string StartTime;
     public string EndTime;
-
-    public bool buildTheCal;
     // 08 Jan 2019 12:00:00 GMT
     #endregion
+
+    private void Start() {
+        NetworkDatabase.NDB.EventsDownloaded.AddListener(() => buildTheCal = true);
+    }
 
     void Update() {
         if (addFollowingEventToCal) {
@@ -45,27 +52,31 @@ public class CalendarLayoutManager : MonoBehaviour {
             return;
 
         buildTheCal = false;
-       
-        BuildNewCalendarGO(debugCalendar);
+        //Debug.Log("Building the calendar");
+        BuildNewCalendarGO(NetworkDatabase.NDB.GetCalendar());
     }
 
     public void BuildNewCalendarGO(List<DBEvent> allEvents) {
         if (allEvents.Count == 0) {
-            Debug.LogError("Trying to display no events!");
+            //Debug.LogError("Trying to display no events!");
             return;
         }
-        List<DBEvent> sortedCalendar = allEvents.OrderBy(e => e.StartTime).ToList();
-        int calendarTotalDays = (sortedCalendar.Last().EndTime - sortedCalendar.First().StartTime).Days + 1;
+        // Ignores events that go over midnight!
+        List<LayoutEvent> sortedCalendar = new List<LayoutEvent>(allEvents.Select(dBEvent => new LayoutEvent(dBEvent)).OrderBy(ev => ev.Start).ThenBy(ev => ev.End).ToList());
+        LayoutEvents(sortedCalendar);
+        Queue<LayoutEvent> calendarQueue = new Queue<LayoutEvent>(sortedCalendar);
+
+        int calendarTotalDays = (sortedCalendar.Last().End - sortedCalendar.First().Start).Days + 1;
 
         if (calendarTotalDays > 7) {
             Debug.LogError("Trying to display events within a span of more than 7 days!");
         }
-        Debug.Log("Total calendar days: " + calendarTotalDays);
+        //Debug.Log("Total calendar days: " + calendarTotalDays);
 
         bool over3Days = calendarTotalDays > 3;
         float titlePanelHeight = 1 - (((over3Days ? 510 : 108) / calendarTotalDays + 16) / parentPanel.rect.size.y);
         int hoursWidth = 60;
-        float hourHeight = 60 / parentPanel.rect.size.y*titlePanelHeight;
+        float hourHeight = 135 / parentPanel.rect.size.y*titlePanelHeight;
 
         RectTransform calendarObject = buildBaseGO();
         calendarObject.gameObject.SetActive(false);
@@ -78,13 +89,21 @@ public class CalendarLayoutManager : MonoBehaviour {
         RectTransform daysPanel = buildDaysPanel(scrollContentPanel, hoursWidth);
         setupScrolRect(calendarObject.gameObject, scrollContentPanel, eventsViewportPanel);
 
-        DateTime startDate = sortedCalendar.First().StartTime;
+        DateTime startDate = sortedCalendar.First().Start;
         for (int i = 0; i < calendarTotalDays; i++) {
             buildDayTitle(dayTitlesPanel, i, calendarTotalDays, startDate, over3Days);
 
             RectTransform dayPanel = buildDayPanel(daysPanel, i, calendarTotalDays);
             for(int j = 0; j < 24; j++) {
                 buildHourPanel(dayPanel, j);
+            }
+            if (calendarQueue.Count == 0)
+                continue;
+            while(calendarQueue.Peek().Start.Date == startDate.AddDays(i).Date) {
+                LayoutEvent le = calendarQueue.Dequeue();
+                buildEventPanel(dayPanel, le);
+                if (calendarQueue.Count == 0)
+                    break;
             }
         }
         for (int j = 1; j < 24; j++) {
@@ -96,11 +115,89 @@ public class CalendarLayoutManager : MonoBehaviour {
             currentCalendar.SetActive(false);
             DestroyImmediate(currentCalendar);
         }
+        calendarObject.localScale = Vector3.one;
         calendarObject.gameObject.SetActive(true);
         currentCalendar = calendarObject.gameObject;
     }
 
+    public class LayoutEvent {
+        public readonly DBEvent dBEvent;
+        public float Left;
+        public float Right;
+        public LayoutEvent(DBEvent dBEvent) {
+            this.dBEvent = dBEvent;
+        }
 
+        public DateTime Start { get => dBEvent.StartTime; }
+        public DateTime End { get => dBEvent.EndTime; }
+
+        public bool CollidesWith(LayoutEvent other) {
+            return (End > other.Start && Start < other.End);
+        }
+    }
+    #region Event width layout - taken from https://stackoverflow.com/a/11323909
+    /// Pick the left and right positions of each event, such that there are no overlap.
+    /// Step 3 in the algorithm.
+    void LayoutEvents(List<LayoutEvent> events) {
+        List<List<LayoutEvent>> columns = new List<List<LayoutEvent>>();
+        DateTime? lastEventEnding = null;
+        foreach (LayoutEvent ev in events) {
+            if (ev.Start >= lastEventEnding) {
+                PackEvents(columns);
+                columns.Clear();
+                lastEventEnding = null;
+            }
+            bool placed = false;
+            foreach (List<LayoutEvent> col in columns) {
+                if (!col.Last().CollidesWith(ev)) {
+                    col.Add(ev);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                columns.Add(new List<LayoutEvent> { ev });
+            }
+            if (lastEventEnding == null || ev.End > lastEventEnding.Value) {
+                lastEventEnding = ev.End;
+            }
+        }
+        if (columns.Count > 0) {
+            PackEvents(columns);
+        }
+    }
+
+    /// Set the left and right positions for each event in the connected group.
+    /// Step 4 in the algorithm.
+    void PackEvents(List<List<LayoutEvent>> columns) {
+        float numColumns = columns.Count;
+        int iColumn = 0;
+        foreach (var col in columns) {
+            foreach (var ev in col) {
+                int colSpan = ExpandEvent(ev, iColumn, columns);
+                ev.Left = iColumn / numColumns;
+                ev.Right = (iColumn + colSpan) / numColumns;
+            }
+            iColumn++;
+        }
+    }
+
+    /// Checks how many columns the event can expand into, without colliding with
+    /// other events.
+    /// Step 5 in the algorithm.
+    int ExpandEvent(LayoutEvent ev, int iColumn, List<List<LayoutEvent>> columns) {
+        int colSpan = 1;
+        foreach (var col in columns.Skip(iColumn + 1)) {
+            foreach (var ev1 in col) {
+                if (ev1.CollidesWith(ev)) {
+                    return colSpan;
+                }
+            }
+            colSpan++;
+        }
+        return colSpan;
+    }
+    #endregion
 
 
     #region Build Individual GOs
@@ -112,6 +209,8 @@ public class CalendarLayoutManager : MonoBehaviour {
         RectTransform calendarObject = new GameObject("Calendar").AddComponent<RectTransform>();
         calendarObject.SetParent(parentPanel);
         setRectTransformPos(calendarObject, 0, 0, 1, 1);
+        //calendarObject.offsetMax = new Vector2(-25, -30);
+        //calendarObject.offsetMin = new Vector2(25, 30);
         return calendarObject;
     }
 
@@ -160,7 +259,7 @@ public class CalendarLayoutManager : MonoBehaviour {
         float fSize = (float)96 / calendarTotalDays;
         dayTitleTextUI.fontSize = (int)fSize;
         dayTitleTextUI.font = textFont;
-        dayTitleTextUI.color = Color.black;
+        dayTitleTextUI.color = Color.white;
         if (over3Days) {
             string formatString = @"\<\s\i\z\e\=" + (int)(fSize * 1.5) + @"\>" + "ddd" + @"\<\/\s\i\z\e\>" + Environment.NewLine +
                                   @"\<\s\i\z\e\=" + (int)(fSize * 2) + @"\>" + "d" + @"\<\/\s\i\z\e\>" + Environment.NewLine +
@@ -180,7 +279,7 @@ public class CalendarLayoutManager : MonoBehaviour {
         eventsViewportPanel.SetParent(calendarObject);
         setRectTransformPos(eventsViewportPanel, 0, 0, 1, titlePanelHeight);
         eventsViewportPanel.gameObject.AddComponent<Mask>().showMaskGraphic = false;
-        addBorder(eventsViewportPanel.gameObject, topLeftBorder);
+        addBorder(eventsViewportPanel.gameObject, topLeftBorder, true);
         return eventsViewportPanel;
     }
     /// <summary>
@@ -190,7 +289,10 @@ public class CalendarLayoutManager : MonoBehaviour {
         RectTransform scrollViewportPanel = new GameObject("Scroll Panel").AddComponent<RectTransform>();
         scrollViewportPanel.SetParent(eventsViewportPanel);
         setRectTransformPos(scrollViewportPanel, 0, 1-(hourHeight*24), 1, 1);
+        scrollViewportPanel.offsetMax = new Vector2(0, 7*hourHeight*eventsViewportPanel.rect.size.y);
+        scrollViewportPanel.offsetMin = new Vector2(0, 7*hourHeight*eventsViewportPanel.rect.size.y);
         addBorder(scrollViewportPanel.gameObject, topLeftBorder);
+        scrollViewportPanel.gameObject.GetComponent<Image>().fillCenter = false;
         return scrollViewportPanel;
     }
     private void setupScrolRect(GameObject calendarObj, RectTransform scrollContentPanel, RectTransform eventsViewportPanel) {
@@ -243,9 +345,58 @@ public class CalendarLayoutManager : MonoBehaviour {
         dayTitleTextUI.alignment = TextAnchor.MiddleCenter;
         dayTitleTextUI.fontSize = 13;
         dayTitleTextUI.font = textFont;
-        dayTitleTextUI.color = Color.grey;
+        dayTitleTextUI.color = Color.white;
         dayTitleTextUI.text = hour.ToString().PadLeft(2, '0') + ":00";
         return hourPanel;
+    }
+    
+    /// <summary>
+    /// Build event panel
+    /// </summary>
+    private RectTransform buildEventPanel(RectTransform dayPanel, LayoutEvent theEvent) {
+        RectTransform eventPanel = new GameObject("Event " + theEvent.dBEvent.EventName + " Panel").AddComponent<RectTransform>();
+        eventPanel.SetParent(dayPanel);
+        setRectTransformPos(eventPanel, theEvent.Left, 1 - (theEvent.End.Hour + (theEvent.End.Minute / 60f)) / 24f,
+                                      theEvent.Right, 1 - (theEvent.Start.Hour + (theEvent.Start.Minute / 60f)) / 24f);
+
+        GameObject eventTitleText = new GameObject("Event " + theEvent.dBEvent.EventName + " Title Text");
+        RectTransform eventTitleTextRT = eventTitleText.AddComponent<RectTransform>();
+        eventTitleTextRT.SetParent(eventPanel);
+        setRectTransformPos(eventTitleTextRT, 0, 0, 1, 1);
+        eventTitleTextRT.offsetMax = new Vector2(-12, -5);
+        eventTitleTextRT.offsetMin = new Vector2(12, 5);
+        TextMeshProUGUI tmpro = eventTitleText.AddComponent<TextMeshProUGUI>();
+        tmpro.alignment = TextAlignmentOptions.Center;
+        tmpro.enableWordWrapping = true;
+        tmpro.overflowMode = TextOverflowModes.Ellipsis;
+        tmpro.font = tmpFont;
+        tmpro.color = Color.black;
+        tmpro.text = theEvent.dBEvent.EventName;
+        tmpro.fontSize = 34;
+        addBorder(eventPanel.gameObject, eventBorder, true);
+
+        Image border = eventPanel.gameObject.GetComponent<Image>();
+        if (theEvent.dBEvent.UserGoing)
+            border.color = Color.green;
+        else
+            border.color = Color.red;
+
+        EventTrigger popupET = eventPanel.gameObject.AddComponent<EventTrigger>();
+        EventTrigger.Entry entry = new EventTrigger.Entry();
+        entry.eventID = EventTriggerType.PointerClick;
+        entry.callback.AddListener((data) => StartCoroutine(ToggleAndSetColor(border, theEvent.dBEvent.EventID)));
+        popupET.triggers.Add(entry);
+        return eventPanel;
+    }
+
+    private IEnumerator ToggleAndSetColor(Image imageToCol, long eventID) {
+        if (NetworkDatabase.NDB.ToggleInterest(eventID)) {
+            imageToCol.color = Color.green;
+        }
+        else {
+            imageToCol.color = Color.red;
+        }
+        yield return null;
     }
     #endregion
 
@@ -257,10 +408,11 @@ public class CalendarLayoutManager : MonoBehaviour {
         rt.offsetMax = Vector2.zero;
     }
 
-    private void addBorder(GameObject toAddTo, Sprite theBorder) {
+    private void addBorder(GameObject toAddTo, Sprite theBorder, bool fillCenter = false) {
         Image dtBorder = toAddTo.AddComponent<Image>();
         dtBorder.sprite = theBorder;
         dtBorder.type = Image.Type.Sliced;
+        dtBorder.fillCenter = fillCenter;
     }
     #endregion
 

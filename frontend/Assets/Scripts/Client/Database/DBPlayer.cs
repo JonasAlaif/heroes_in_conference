@@ -7,9 +7,15 @@ using System.Collections.Generic;
 /// </summary>
 [Serializable]
 public class DBPlayer {
-    private long playerID;
-    public long PlayerID { get => playerID; }
+    public readonly long PlayerID;
+    public readonly string PlayerName;
 
-    private string playerName;
-    public string PlayerName { get => playerName; }
+    private FilePath fp;
+
+    public DBPlayer(long playerID, string playerName) {
+        PlayerID = playerID;
+        PlayerName = playerName;
+    }
+
+    public FilePath FP { get => fp; set => fp = value; }
 }
