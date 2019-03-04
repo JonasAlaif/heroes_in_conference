@@ -28,7 +28,7 @@ Running `autoconf.py` will automatically configure, build and run the server. In
 
 ### Manual Configuration
 
-Manual configuration of the server is error-prone, so the automatic approach is strongly recommended. However, a description is given here for copmleteness.
+Manual configuration of the server is error-prone, so the automatic approach is strongly recommended. However, a description is given here for completeness.
 
 In order for the server to work correctly, you will need create three files in your `backend` directory. These are: `facebook.properties`, `database.properties`, and `admin.properties`. All commands shown in the following section assume you are already inside the `backend` directory. Also see [manually configuring the admin panel](#administration-panel). 
 
@@ -114,3 +114,45 @@ The administration panel is set up to be mounted at `/admin/` on the server. Thi
 mkdir ../backend/static
 mv build ../backend/static/admin
 ```
+
+## Unity Client
+
+### Requirements
+
+- Unity 2018.3.2, may work with other versions
+- TextMesh Pro, comes with Unity in some versions
+- GUI sprite assets (`Fantasy Wooden GUI : Free` plugin)
+- 3D models
+- Fingers Lite plugin
+- Vuforia SDK
+
+### Setup
+
+The scenes have been setup with temporary sprite and model assets, but these aren't online so new ones must be imported and referenced in the scenes. The Api Compatibility Level in Unity must be set to `.Net 4.x` to enable use of `dynamic` in C#, this can be set under `File > Build Settings... > Player Settings... > Other Settings`
+
+### Customisation
+
+#### Inventory
+
+Adding an item to the inventory requires the following steps:
+
+1. Create a copy of a slot object (already done up to 32 total items)
+2. Increase the size of the `slotFull` component of the `Inventory` object (already done up to 32 total items)
+3. Drag the new object to the `Slot` component of the `Inventory` object (already done up to 32 total items, only sprite needs to be updated)
+4. In order to unlock an in the inventory, `slotFull` must be set to true at that index
+
+#### Model Viewer
+
+Adding a model for the model viewer requires the following steps:
+
+1. Add the model into the scene
+2. Increase the `ModelList` component of the `ModelViewer` object
+3. Add the model into the list (make sure it is the right index, as it needs to be the same as its index in the inventory)
+
+#### Network Database
+
+The `Client` script handles all networking and the `Database` script handles all local caching and saving to disk. Neither of these use any Unity calls or have any concept of the Unity Engine. The `NetworkDatabase` script is a singleton present in every scene (through `DontDestroyOnLoad`). It combines the two scripts and implements methods to enable interaction with them - the scripts in the app shouldn't have any concept of `Client` or `Database`, only `NetworkDatabase`. In general calls to the `Client` script should be made in a separate thread and then handled in Unity by setting a flag, which is checked in an Update method and then handled.
+
+# Feedback
+
+Feedback and bug reports are welcome!
